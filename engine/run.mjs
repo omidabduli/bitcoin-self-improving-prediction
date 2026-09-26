@@ -154,7 +154,7 @@ async function main() {
         const pStats = Object.fromEntries(HORIZONS.map((h) => [h, [0.5, 0.8, 0.95].map((q) => Number(quant(wu.pAbs[h], q).toFixed(4)))]));
         const days = {};
         for (const [dk, a] of Object.entries(wu.byDay)) days[dk] = Object.fromEntries(HORIZONS.map((h) => [h, roundAgg(a[h])]));
-        writeJSON('backtest.json', { note: 'Walk-forward simulation run once at launch: each day the experts were refit on earlier data only, then the full online system (ensemble weights, conformal bands, calibration) was stepped minute by minute. The generation-0 settings were chosen in a longer walk-forward test on Cardano (the sister project ADAptive), not on these Bitcoin days. The live record is what counts.', from: isoMinute(S.t[S.t.length - WARMUP_DAYS * DAY_MIN]), to: isoMinute(S.t[S.t.length - 1]), days, pAbsQuantiles: pStats });
+        writeJSON('warmup.json', { note: 'Warm-up simulation run once at launch (the long backtest is data/backtest.json, from engine/backtest.mjs): each day the experts were refit on earlier data only, then the full online system (ensemble weights, conformal bands, calibration) was stepped minute by minute. The generation-0 settings were chosen in a longer walk-forward test on Cardano (the sister project ADAptive), not on these Bitcoin days. The live record is what counts.', from: isoMinute(S.t[S.t.length - WARMUP_DAYS * DAY_MIN]), to: isoMinute(S.t[S.t.length - 1]), days, pAbsQuantiles: pStats });
         status.liveSince = new Date(state.t + 2 * MINUTE).toISOString();
         log('p-edge quantiles (50/80/95%):', JSON.stringify(pStats));
       }

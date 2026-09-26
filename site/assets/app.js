@@ -330,21 +330,82 @@ function renderScores() {
   const s = app.status;
   let note = s ? `Official record committed ${F.ago(Date.parse(s.updatedAt))}.` : '';
   if (app.marketOk && since) note += ` The ${F.num(since)} results since then were scored in your browser with the same code and data.`;
-  const bt = app.backtest && summarizeBacktest(app.backtest);
-  if (bt) note += ` Launch backtest (${bt.days} simulated days before going live): direction ${bt.dir}, 80% range held ${bt.cov}.`;
   $('recordNote').textContent = note;
   if (s?.liveSince) $('liveSince').textContent = `live since ${F.dateShort(Date.parse(s.liveSince))}`;
 }
 
-function summarizeBacktest(b) {
-  const days = Object.values(b.days || {});
-  if (!days.length) return null;
-  const per = HORIZONS.map((h) => days.reduce((a, d) => mergeAgg(a, d[h]), null));
-  return {
-    days: days.length,
-    dir: HORIZONS.map((h, k) => `${H_SHORT[h]} ${(per[k].hi / per[k].ni * 100).toFixed(0)}% of ${per[k].ni}`).join(', '),
-    cov: HORIZONS.map((h, k) => `${(per[k].c[1] / per[k].n * 100).toFixed(0)}%`).join(' / '),
-  };
+// ---------------------------------------------------------------- backtest
+
+const pctCell = (hit, n) => (n ? `${(hit / n * 100).toFixed(1)}%` : '—');
+
+function renderBacktest() {
+  const b = app.backtest;
+  const keys = Object.keys(b?.days || {}).sort();
+  if (!keys.length) { $('backtest').hidden = true; return; }
+  const per = Object.fromEntries(HORIZONS.map((h) => [h, keys.reduce((a, d) => mergeAgg(a, b.days[d][h]), null)]));
+  $('btSpan').textContent = `${F.num(keys.length)} days, ${F.dateShort(Date.parse(keys[0]))} ${keys[0].slice(0, 4)} to ${F.dateShort(Date.parse(keys.at(-1)))} ${keys.at(-1).slice(0, 4)}`;
+  $('btScores').querySelector('tbody').innerHTML = HORIZONS.map((h) => {
+    const a = per[h], s = summarize(a);
+    return `<tr>
+      <td class="h">${H_SHORT[h]}</td>
+      <td class="big">${pctCell(a.hi, a.ni)}<small>${F.num(a.ni)} independent · z = ${s.zscore.toFixed(1)} vs. a coin flip</small></td>
+      <td class="big">${(s.cov[1] * 100).toFixed(1)}%<small>50% range ${(s.cov[0] * 100).toFixed(0)}% · 95% range ${(s.cov[2] * 100).toFixed(0)}%</small></td>
+      <td class="big">${(s.mae * 100).toFixed(2)}%<small>"no change": ${(s.mae0 * 100).toFixed(2)}%</small></td>
+      <td class="num">${F.num(s.n)}</td>
+    </tr>`;
+  }).join('');
+  $('btNote').textContent = b.note || '';
+  const months = {};
+  for (const d of keys) {
+    const m = d.slice(0, 7);
+    months[m] ||= {};
+    for (const h of HORIZONS) months[m][h] = mergeAgg(months[m][h], b.days[d][h]);
+  }
+  $('btMonths').querySelector('tbody').innerHTML = Object.entries(months).reverse().map(([m, a]) => `<tr>
+    <td>${new Date(Date.parse(m + '-01T00:00Z')).toLocaleDateString('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' })}</td>
+    ${HORIZONS.map((h) => `<td class="num">${pctCell(a[h].hi, a[h].ni)}</td>`).join('')}
+    ${HORIZONS.map((h) => `<td class="num">${pctCell(a[h].c[1], a[h].n)}</td>`).join('')}
+  </tr>`).join('');
+  loadBacktestRows();
+}
+
+// the most recent backtest forecasts, from the newest monthly CSV
+let btRows = null, btH = 60;
+async function loadBacktestRows() {
+  const ms = app.backtest.months || [];
+  if (!ms.length) return;
+  try {
+    let lines = (await getText(`data/backtest/${ms.at(-1)}.csv`)).trim().split('\n').slice(1);
+    // ten 24-hour forecasts need ten days: early in a month, add the month before
+    if (lines.length < 11 * 96 && ms.length > 1) lines = (await getText(`data/backtest/${ms.at(-2)}.csv`)).trim().split('\n').slice(1).concat(lines);
+    btRows = lines.slice(-11 * 96).map((l) => {
+      const c = l.split(',');
+      const t = Date.parse(c[0] + ':00Z'), price = Number(c[1]);
+      return { t, c: price, h: Object.fromEntries(HORIZONS.map((h, k) => { const o = 2 + k * 5; return [h, { est: +c[o] / 1e4, p: +c[o + 1], lo: +c[o + 2] / 1e4, hi: +c[o + 3] / 1e4, y: +c[o + 4] / 1e4 }]; })) };
+    });
+    renderBacktestRows();
+  } catch (e) { console.warn('backtest rows unavailable', e); }
+}
+
+function renderBacktestRows() {
+  if (!btRows) return;
+  // one row per checked forecast of this horizon, newest outcome first (hourly for 1 h, etc.)
+  const step = Math.max(1, btH / CADENCE);
+  const rows = btRows.filter((r) => (Math.round(r.t / MINUTE) + 1) % (step * CADENCE) === 0).slice(-LOG_ROWS).reverse();
+  const when = (ms) => `${F.dateShort(ms)} ${F.hhmm(ms)}`;
+  $('btLog').querySelector('tbody').innerHTML = rows.map((r) => {
+    const x = r.h[btH];
+    const inside = x.y >= x.lo && x.y <= x.hi;
+    const dir = x.y === 0 ? 'flat' : (x.y > 0) === (x.p >= 0.5) ? 'direction right' : 'direction wrong';
+    return `<tr>
+      <td class="num">${when(issuedAt(r.t))}</td>
+      <td>${H_SHORT[btH]}</td>
+      <td class="num">${F.price(r.c * Math.exp(x.est), PRICE_DIGITS)}</td>
+      <td class="num">${F.price(r.c * Math.exp(x.lo), PRICE_DIGITS)} – ${F.price(r.c * Math.exp(x.hi), PRICE_DIGITS)}</td>
+      <td class="num">${F.price(r.c * Math.exp(x.y), PRICE_DIGITS)}</td>
+      <td><span class="status ${inside ? 'done' : 'active'}">${inside ? 'in range' : 'outside'}</span> <small>${dir}</small></td>
+    </tr>`;
+  }).join('');
 }
 
 function renderLog() {
@@ -463,6 +524,14 @@ async function boot() {
   const gh = `https://github.com/${repo}`;
   $('ghLink').href = gh;
   $('csvLink').href = `${gh}/tree/main/data/predictions`;
+  $('btCsvLink').href = `${gh}/tree/main/data/backtest`;
+  $('btSeg').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    btH = Number(b.dataset.h);
+    for (const x of $('btSeg').querySelectorAll('button')) x.setAttribute('aria-pressed', String(x === b));
+    renderBacktestRows();
+  });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { catchUp(); pollStatus(); } });
   let resizeT = 0;
   addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(renderChart, 150); });
@@ -477,6 +546,7 @@ async function boot() {
   // request answers, and the forecast once the browser has caught up with the market
   renderStatic();
   renderMinute();
+  renderBacktest();
   fetchPrice(SYMBOL).then((p) => { app.price ??= p; renderPrice(); renderChart(); }).catch(() => {});
   await startLive();
   setInterval(tick, 1000);

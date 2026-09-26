@@ -30,6 +30,7 @@
   <ul>
     <li><a href="#chart">Chart</a></li>
     <li><a href="#record">Record</a></li>
+    <li><a href="#backtest">Backtest</a></li>
     <li><a href="#method">Method</a></li>
     <li><a class="btn primary nav-btn" id="ghLink" href="https://github.com/omidabduli/bitcoin-self-improving-prediction">GitHub</a></li>
   </ul>
@@ -91,7 +92,43 @@
   <p class="note">All forecasts: <a id="csvLink" href="#">CSV files on GitHub</a>, one row every 15 minutes.</p>
 </div></section>
 
-<section class="block alt" id="method"><div class="wrap">
+<section class="block alt" id="backtest"><div class="wrap">
+  <div class="sec-head">
+    <div><p class="eyebrow">Backtest · <span id="btSpan">the past year</span></p><h2>The same system, <em>replayed</em> on the past year</h2></div>
+    <p>Before going live, the whole system was run over the past year as if it had been live: each day it could only train on the days before, then it made a forecast every 15 minutes and was checked, exactly like now. Same code, same scoring as the live record above.</p>
+  </div>
+  <div class="table-wrap">
+    <table class="scores" id="btScores">
+      <thead><tr><th>Horizon</th><th>Direction right</th><th>Range held (aim 80%)</th><th>Typical miss</th><th>Forecasts checked</th></tr></thead>
+      <tbody><tr><td colspan="5">Loading the backtest…</td></tr></tbody>
+    </table>
+  </div>
+  <p class="note" id="btNote"></p>
+
+  <h3 class="sub-h">Month by month</h3>
+  <div class="table-wrap">
+    <table class="months" id="btMonths">
+      <thead><tr><th></th><th colspan="3" class="grp">Direction right</th><th colspan="3" class="grp">Range held (aim 80%)</th></tr><tr><th>Month</th><th>1 h</th><th>3 h</th><th>24 h</th><th>1 h</th><th>3 h</th><th>24 h</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="sub-row">
+    <h3 class="sub-h">Latest backtest forecasts</h3>
+    <div class="seg" id="btSeg" role="group" aria-label="Horizon">
+      <button type="button" data-h="60" aria-pressed="true">1 h</button><button type="button" data-h="180" aria-pressed="false">3 h</button><button type="button" data-h="1440" aria-pressed="false">24 h</button>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table class="log" id="btLog">
+      <thead><tr><th>Made</th><th>For</th><th>Forecast</th><th>80% range</th><th>Actual</th><th>Result</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <p class="note">Every backtest forecast: <a id="btCsvLink" href="#">CSV files on GitHub</a>, one row every 15 minutes, with what actually happened.</p>
+</div></section>
+
+<section class="block" id="method"><div class="wrap">
   <div class="sec-head">
     <div><p class="eyebrow">Method</p><h2>How it predicts, and how it learns</h2></div>
     <p>In plain words. Nothing runs on a server: your browser does all of this with the published model. Every 15 minutes a GitHub job replays the same minutes with the same code and saves the official record.</p>
@@ -123,7 +160,7 @@
       <h2>Can it get close to 100%? No.</h2>
     </div>
     <div class="closing-text">
-      <p>Nobody can reliably call the direction of a liquid market hours ahead. In a 300-day test of the same system on Cardano, every combination of signals we tried called the direction between 48% and 54% of the time: noise around a coin flip. What can be forecast honestly is how far the price is likely to move. That is what the range shows, and it is checked every day.</p>
+      <p>Nobody can reliably call the direction of a liquid market hours ahead. In the one-year backtest above, direction came out between 48% and 52% at every horizon, and on Cardano every combination of signals we tried landed between 48% and 54%: noise around a coin flip. What can be forecast honestly is how far the price is likely to move. That is what the range shows, and it is checked every day.</p>
       <p>If a real edge appears, the ensemble and the daily evolution are built to find it, and the record above will show it. This is a public experiment, not financial advice.</p>
       <p><b>The goal is 54% at 1 hour.</b> Professional short-term traders are happy with 51 to 55%. Held over hundreds of independent forecasts, 54% would be a real edge, not luck.</p>
     </div>

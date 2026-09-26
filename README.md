@@ -32,7 +32,17 @@ I built and tested this system on Cardano first, over 300 days of history, walki
 - **The price estimate was about as good as "no change".**
 - **The range was the part that worked.** The 50%, 80% and 95% ranges held 50%, 80% and 95% of the time.
 
-Bitcoin is the most watched and most traded coin there is, so I don't expect it to be easier. Before going live the system simulated its first 30 days on Bitcoin; that result is in `data/backtest.json` and on the page, kept apart from the live record. The page shows the real score and counts only forecasts that don't overlap, so a single lucky move isn't counted a hundred times.
+Then I ran the same thing on Bitcoin for a full year (24 September 2025 to 23 September 2026, about 35,000 forecasts), again only ever training on the past:
+
+| | 1 hour | 3 hours | 24 hours |
+|---|---|---|---|
+| Direction right (independent calls) | 50.5% of 8,759 | 51.9% of 2,919 | 47.8% of 364 |
+| 80% range held | 80.0% | 80.0% | 79.8% |
+| Typical miss vs. "no change" | 0.31% vs. 0.31% | 0.54% vs. 0.54% | 1.66% vs. 1.66% |
+
+The ranges are right almost to the decimal, in every month. The direction is a coin flip. I also tried nine variations (less shrinkage, all signals, shorter training windows, bigger forests, faster or slower trust updates), tuned on the first eight months and checked on the last four. None was clearly better, so I kept the original. Picking the variant that happened to look best on the last four months would have been fooling myself.
+
+The backtest is on the page, month by month, and every single forecast is in `data/backtest/`. The page shows the live score too and counts only forecasts that don't overlap, so a single lucky move isn't counted a hundred times.
 
 If a real pattern shows up, the system is built to find it, and the record will show it. Until then, it is honest about what it doesn't know. This is an experiment, not financial advice.
 
@@ -77,7 +87,8 @@ Everything lives in `data/` and is committed by the bot:
 | `daily/YYYY-MM.json` | scores per day and snapshots of the ensemble |
 | `fng.json` | the last 30 days of the Fear & Greed index, exactly as the record used it |
 | `status.json` | the last run, totals and a file index |
-| `backtest.json` | the 30-day simulation from launch, kept apart from the live record |
+| `backtest.json`, `backtest/YYYY-MM.csv` | the one-year walk-forward backtest: scores per day and every forecast with its outcome |
+| `warmup.json` | the 30-day warm-up simulation from launch |
 
 A forecast made at time *t* only uses models trained before *t* and data that was public at *t*. Times are UTC candle open times, so the `14:29` row is the forecast issued when that candle closed, at 14:30. Anyone can replay a checkpoint with `site/core/engine.js` and get the same numbers.
 
@@ -88,6 +99,7 @@ You need Node.js 22 or newer. No packages to install.
 ```bash
 npm test                              # unit tests: no look-ahead, model parity, the online learners
 node engine/run.mjs --bootstrap       # fetch ~107 days, train, simulate 30 days (about 3 minutes)
+node engine/backtest.mjs --days 365   # the one-year backtest (downloads Binance's archive files)
 node engine/run.mjs                   # a normal run: replays everything since the last one
 node engine/serve.mjs                 # preview on http://localhost:8787
 ```

@@ -150,6 +150,13 @@ td.num,td .num{font-family:var(--mono);font-size:14px;font-variant-numeric:tabul
 td.h{font-family:var(--serif);font-size:19px;color:var(--ink);white-space:nowrap}
 td small{display:block;color:var(--muted);font-size:12px;font-family:var(--mono)}
 .scores td.big{font-family:var(--serif);font-weight:300;font-size:26px;color:var(--ink);line-height:1.1;white-space:nowrap}
+.months td{padding-block:10px}
+.months th.grp{color:var(--ink-2);padding-bottom:4px}
+.months tr:first-child th{border-bottom:0}
+.sub-row{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;margin-bottom:12px}
+.seg button{font:500 13px/1 var(--sans);color:var(--ink-2);background:none;border:0;border-radius:999px;padding:8px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
 .council td.name{color:var(--ink);font-weight:500;white-space:nowrap}
 .council td.reads{min-width:220px}
 .trust{display:flex;align-items:center;gap:8px}
