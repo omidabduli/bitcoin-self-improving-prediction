@@ -5,7 +5,7 @@
 import { HORIZONS, MINUTE, CADENCE, SYMBOL, LEAD_SYMBOL, PEER_SYMBOL, PRICE_DIGITS, isIssue } from '../core/config.js';
 import { buildSeries, indexOf } from '../core/candles.js';
 import { computeFeatures, D, WARMUP } from '../core/features.js';
-import { expertPredictions, EXPERTS } from '../core/models.js';
+import { expertPredictions, directionScores, EXPERTS } from '../core/models.js';
 import { Engine } from '../core/engine.js';
 import { emptyAgg, addResolution, mergeAgg, summarize } from '../core/metrics.js';
 import { fetchKlines, fetchFearGreed, fetchPrice, LiveStream, serverClockOffset } from './feed.js';
@@ -69,8 +69,8 @@ function parseCSV(text) {
     if (!c[2]) continue;
     const pred = { t, c: close, h: {} };
     HORIZONS.forEach((h, k) => {
-      const o = 2 + k * 4;
-      pred.h[h] = { ret: Number(c[o]) / 1e4, p: Number(c[o + 1]), lo80: Number(c[o + 2]) / 1e4, hi80: Number(c[o + 3]) / 1e4 };
+      const o = 2 + k * 5;
+      pred.h[h] = { ret: Number(c[o]) / 1e4, p: Number(c[o + 1]), lo80: Number(c[o + 2]) / 1e4, hi80: Number(c[o + 3]) / 1e4, strong: c[o + 4] === '1' };
     });
     app.official.set(t, pred);
   }
@@ -80,7 +80,7 @@ function fromEngine(pred) {
   const o = { t: pred.t, c: pred.c, h: {} };
   for (const h of HORIZONS) {
     const x = pred.h[h];
-    o.h[h] = { ret: x.ret, med: x.med, p: x.p, w: x.w, lo80: x.lo[1], hi80: x.hi[1] };
+    o.h[h] = { ret: x.ret, med: x.med, p: x.p, strong: x.strong, w: x.w, lo80: x.lo[1], hi80: x.hi[1] };
   }
   return o;
 }
@@ -148,8 +148,9 @@ function advance() {
   }
   let changed = false;
   for (; i < S.t.length; i++) {
-    const mus = i >= WARMUP && isIssue(S.t[i]) ? expertPredictions(app.model, Fx.X, D, i) : null;
-    const { resolved, pred } = eng.step(S.t[i], S.c[i], Fx.vol[i], mus);
+    const issue = i >= WARMUP && isIssue(S.t[i]);
+    const mus = issue ? expertPredictions(app.model, Fx.X, D, i) : null;
+    const { resolved, pred } = eng.step(S.t[i], S.c[i], Fx.vol[i], mus, issue ? directionScores(app.model, Fx.X, D, i) : null);
     if (pred) { app.live.set(S.t[i], fromEngine(pred)); app.lastPred = fromEngine(pred); }
     for (const r of resolved) addResolution(app.sinceCkpt[r.h], r);
     changed = true;
@@ -258,7 +259,17 @@ function forecastBox(pred, h, t0, tNow) {
       <i class="est ${dir}" style="left:${pos(med)}%"></i>
     </div>
     <p class="fc-range"><span>${F.price(lo, PRICE_DIGITS)} <b class="down">${pctText(loChg, 1)}</b></span><span>80% range</span><span>${F.price(hi, PRICE_DIGITS)} <b class="up">${pctText(hiChg, 1)}</b></span></p>
+    ${directionLine(x)}
   </div>`;
+}
+
+// The direction call: up or down, how likely, and whether it is a confident call (the kind that
+// scored best in the backtest). A call that isn't confident is shown as a lean.
+function directionLine(x) {
+  if (!Number.isFinite(x.p)) return '';
+  const up = x.p >= 0.5, pr = up ? x.p : 1 - x.p;
+  const word = x.strong ? (up ? 'Calls up' : 'Calls down') : (up ? 'Leans up' : 'Leans down');
+  return `<p class="fc-dir"><span class="${up ? 'up' : 'down'}">${up ? '\u25b2' : '\u25bc'} ${word}</span> <span>${(pr * 100).toFixed(0)}% likely</span>${x.strong ? ' <span class="status done">confident</span>' : ''}</p>`;
 }
 
 // A forecast is current until the next one is due. An older one is never shown as if it were
@@ -314,13 +325,14 @@ function totals(h) {
 function renderScores() {
   $('scores').querySelector('tbody').innerHTML = HORIZONS.map((h) => {
     const a = totals(h), s = summarize(a);
-    if (!s) return `<tr><td class="h">${H_SHORT[h]}</td><td colspan="4">No forecast has reached its time yet. The first ${H_NAME[h]} forecast is checked ${H_NAME[h]} after launch.</td></tr>`;
+    if (!s) return `<tr><td class="h">${H_SHORT[h]}</td><td colspan="5">No forecast has reached its time yet. The first ${H_NAME[h]} forecast is checked ${H_NAME[h]} after launch.</td></tr>`;
     const dir = a.ni ? `${(a.hi / a.ni * 100).toFixed(1)}%` : '—';
     const z = s.ni >= 10 ? `z = ${s.zscore.toFixed(1)} vs. a coin flip` : 'too few to judge yet';
-    const goal = h === 60 ? ' · goal 54%' : '';
+    const goal = h < 1440 ? ' · goal 54%' : '';
     return `<tr>
       <td class="h">${H_SHORT[h]}</td>
-      <td class="big">${dir}<small>${F.num(s.ni)} independent · ${z}${goal}</small></td>
+      <td class="big">${dir}<small>${F.num(s.ni)} independent · ${z}</small></td>
+      <td class="big">${s.sni ? `${(s.strongAccI * 100).toFixed(1)}%` : '—'}<small>${F.num(s.sni)} confident calls${s.sni >= 10 ? ` · z = ${s.strongZ.toFixed(1)}` : ''}${goal}</small></td>
       <td class="big">${(s.cov[1] * 100).toFixed(1)}%<small>of ${F.num(s.n)} forecasts</small></td>
       <td class="big">${(s.mae * 100).toFixed(2)}%<small>"no change": ${(s.mae0 * 100).toFixed(2)}%</small></td>
       <td class="num">${F.num(s.n)}</td>
@@ -349,12 +361,25 @@ function renderBacktest() {
     return `<tr>
       <td class="h">${H_SHORT[h]}</td>
       <td class="big">${pctCell(a.hi, a.ni)}<small>${F.num(a.ni)} independent · z = ${s.zscore.toFixed(1)} vs. a coin flip</small></td>
+      <td class="big">${pctCell(a.shi, a.sni)}<small>${F.num(a.sni)} confident calls${a.sni ? ` · z = ${s.strongZ.toFixed(1)}` : ''}</small></td>
       <td class="big">${(s.cov[1] * 100).toFixed(1)}%<small>50% range ${(s.cov[0] * 100).toFixed(0)}% · 95% range ${(s.cov[2] * 100).toFixed(0)}%</small></td>
       <td class="big">${(s.mae * 100).toFixed(2)}%<small>"no change": ${(s.mae0 * 100).toFixed(2)}%</small></td>
       <td class="num">${F.num(s.n)}</td>
     </tr>`;
   }).join('');
   $('btNote').textContent = b.note || '';
+  // before and after the direction model's settings were chosen
+  if (b.tuneEnd) {
+    const split = (h, after) => keys.filter((d) => (d > b.tuneEnd) === after).reduce((a, d) => mergeAgg(a, b.days[d][h]), null);
+    const nT = keys.filter((d) => d <= b.tuneEnd).length, nH = keys.length - nT;
+    $('btSplitHead').innerHTML = `<tr><th>Horizon</th><th>All calls · tuning ${nT} days</th><th>All calls · untouched ${nH} days</th><th>Confident · tuning</th><th>Confident · untouched</th></tr>`;
+    $('btSplit').querySelector('tbody').innerHTML = HORIZONS.map((h) => {
+      const t = split(h, false), u = split(h, true);
+      const cell = (hit, n) => `<td class="num">${pctCell(hit, n)} <small>of ${F.num(n)}</small></td>`;
+      return `<tr><td class="h">${H_SHORT[h]}</td>${cell(t.hi, t.ni)}${cell(u.hi, u.ni)}${cell(t.shi, t.sni)}${cell(u.shi, u.sni)}</tr>`;
+    }).join('');
+    $('btSplitNote').textContent = `The direction model's settings were picked by looking at the ${nT} days up to ${F.dateShort(Date.parse(b.tuneEnd))} ${b.tuneEnd.slice(0, 4)} only. The last ${nH} days were not looked at while choosing, so they are the honest check.`;
+  } else $('btSplitWrap').hidden = true;
   const months = {};
   for (const d of keys) {
     const m = d.slice(0, 7);
@@ -363,6 +388,7 @@ function renderBacktest() {
   }
   $('btMonths').querySelector('tbody').innerHTML = Object.entries(months).reverse().map(([m, a]) => `<tr>
     <td>${new Date(Date.parse(m + '-01T00:00Z')).toLocaleDateString('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' })}</td>
+    ${HORIZONS.slice(0, 2).map((h) => `<td class="num">${pctCell(a[h].shi, a[h].sni)}</td>`).join('')}
     ${HORIZONS.map((h) => `<td class="num">${pctCell(a[h].hi, a[h].ni)}</td>`).join('')}
     ${HORIZONS.map((h) => `<td class="num">${pctCell(a[h].c[1], a[h].n)}</td>`).join('')}
   </tr>`).join('');
@@ -381,7 +407,7 @@ async function loadBacktestRows() {
     btRows = lines.slice(-11 * 96).map((l) => {
       const c = l.split(',');
       const t = Date.parse(c[0] + ':00Z'), price = Number(c[1]);
-      return { t, c: price, h: Object.fromEntries(HORIZONS.map((h, k) => { const o = 2 + k * 5; return [h, { est: +c[o] / 1e4, p: +c[o + 1], lo: +c[o + 2] / 1e4, hi: +c[o + 3] / 1e4, y: +c[o + 4] / 1e4 }]; })) };
+      return { t, c: price, h: Object.fromEntries(HORIZONS.map((h, k) => { const o = 2 + k * 6; return [h, { est: +c[o] / 1e4, p: +c[o + 1], strong: c[o + 2] === '1', lo: +c[o + 3] / 1e4, hi: +c[o + 4] / 1e4, y: +c[o + 5] / 1e4 }]; })) };
     });
     renderBacktestRows();
   } catch (e) { console.warn('backtest rows unavailable', e); }
@@ -396,7 +422,7 @@ function renderBacktestRows() {
   $('btLog').querySelector('tbody').innerHTML = rows.map((r) => {
     const x = r.h[btH];
     const inside = x.y >= x.lo && x.y <= x.hi;
-    const dir = x.y === 0 ? 'flat' : (x.y > 0) === (x.p >= 0.5) ? 'direction right' : 'direction wrong';
+    const dir = (x.y === 0 ? 'flat' : (x.y > 0) === (x.p >= 0.5) ? 'direction right' : 'direction wrong') + (x.strong ? ' · confident' : '');
     return `<tr>
       <td class="num">${when(issuedAt(r.t))}</td>
       <td>${H_SHORT[btH]}</td>
@@ -426,7 +452,7 @@ function renderLog() {
     const x = p.h[h];
     const y = Math.log(c1 / p.c);
     const inside = y >= x.lo80 && y <= x.hi80;
-    const dir = y === 0 ? 'flat' : (y > 0) === (x.p >= 0.5) ? 'direction right' : 'direction wrong';
+    const dir = (y === 0 ? 'flat' : (y > 0) === (x.p >= 0.5) ? 'direction right' : 'direction wrong') + (x.strong ? ' · confident' : '');
     return `<tr>
       <td class="num">${when(issuedAt(t))}</td>
       <td>${H_SHORT[h]}</td>

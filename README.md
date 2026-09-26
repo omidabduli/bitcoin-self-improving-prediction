@@ -32,17 +32,24 @@ I built and tested this system on Cardano first, over 300 days of history, walki
 - **The price estimate was about as good as "no change".**
 - **The range was the part that worked.** The 50%, 80% and 95% ranges held 50%, 80% and 95% of the time.
 
-Then I ran the same thing on Bitcoin for a full year (24 September 2025 to 23 September 2026, about 35,000 forecasts), again only ever training on the past:
+Then I ran the same thing on Bitcoin for a full year. Same result at first: the ranges were right, the direction was a coin flip (50.5% at 1 hour). Nine small variations of the settings didn't change that.
 
-| | 1 hour | 3 hours | 24 hours |
+What did change it was one idea: **train a model only on whether the price went up or down, not on by how much.** A model that learns the size of moves is pushed around by a few huge swings. A model that learns only the direction isn't, and direction is exactly what "right or wrong" measures. I searched for the best version of that idea using only the first eight months (24 Sep 2025 to 24 May 2026) and didn't look at the last four until the choice was made. Then I ran the whole system over the full year, refitting every day on past data only:
+
+| Bitcoin, 25 Sep 2025 to 24 Sep 2026 | 1 hour | 3 hours | 24 hours |
 |---|---|---|---|
-| Direction right (independent calls) | 50.5% of 8,759 | 51.9% of 2,919 | 47.8% of 364 |
+| Confident calls right (independent) | **54.2%** of 4,527 | **54.0%** of 1,535 | 45.7% of 173 |
+| ... in the eight months used for choosing | 53.6% | 53.7% | 45.0% |
+| ... in the four untouched months | **55.4%** | **54.5%** | 46.9% |
+| All calls right (independent) | 52.5% of 8,759 | 53.4% of 2,919 | 47.0% of 364 |
 | 80% range held | 80.0% | 80.0% | 79.8% |
 | Typical miss vs. "no change" | 0.31% vs. 0.31% | 0.54% vs. 0.54% | 1.66% vs. 1.66% |
 
-The ranges are right almost to the decimal, in every month. The direction is a coin flip. I also tried nine variations (less shrinkage, all signals, shorter training windows, bigger forests, faster or slower trust updates), tuned on the first eight months and checked on the last four. None was clearly better, so I kept the original. Picking the variant that happened to look best on the last four months would have been fooling myself.
+A confident call is one where the direction model's signal is stronger than its usual (the median on its own training data), so about half of all calls. At 1 hour, 54.2% over 4,527 calls is 5.7 standard deviations away from a coin flip. That is very unlikely to be luck, and it held up in the months I didn't use for choosing. At 24 hours there is still no edge, and I'm not pretending there is.
 
-The backtest is on the page, month by month, and every single forecast is in `data/backtest/`. The page shows the live score too and counts only forecasts that don't overlap, so a single lucky move isn't counted a hundred times.
+It is still a backtest. Markets change, and a pattern that worked for a year can fade. That's why the live record sits right next to it on the page, scored the same way, and the goal stays public: 54% on confident calls at 1 and 3 hours.
+
+The backtest is on the page, month by month, and every single forecast is in `data/backtest/`. Only forecasts that don't overlap are counted, so a single lucky move isn't counted a hundred times.
 
 If a real pattern shows up, the system is built to find it, and the record will show it. Until then, it is honest about what it doesn't know. This is an experiment, not financial advice.
 
@@ -58,6 +65,8 @@ Six "experts" look at the market in different ways:
 | Crowd Reader | Buying and selling pressure, trading activity and the daily Fear & Greed index |
 | Linear Brain | A regularised regression on the signals that evolution picked |
 | Boosted Forest | Gradient-boosted trees on the same signals, for non-linear patterns |
+
+Next to them sits the **direction model**: a ridge regression and gradient-boosted trees trained on the sign of the move only (up or down), on all 55 signals and the last 240 days. It decides the up/down call and its probability. The six experts decide the price estimate and the range.
 
 After every result, four things happen:
 
@@ -80,7 +89,7 @@ Everything lives in `data/` and is committed by the bot:
 
 | File | What's in it |
 |---|---|
-| `predictions/YYYY-MM-DD.csv` | one row per forecast: the price, and for each horizon the predicted move (bp), P(up) and the 80% range (bp) |
+| `predictions/YYYY-MM-DD.csv` | one row per forecast: the price, and for each horizon the predicted move (bp), P(up), the 80% range (bp) and whether it was a confident call |
 | `state.json` | the learning checkpoint: trust weights, range sizes, calibration, forecasts still waiting |
 | `model.json` | all six experts, including every tree of the forest |
 | `evolution.json` | every daily tournament and the settings that won |
@@ -98,8 +107,8 @@ You need Node.js 22 or newer. No packages to install.
 
 ```bash
 npm test                              # unit tests: no look-ahead, model parity, the online learners
-node engine/run.mjs --bootstrap       # fetch ~107 days, train, simulate 30 days (about 3 minutes)
-node engine/backtest.mjs --days 365   # the one-year backtest (downloads Binance's archive files)
+node engine/run.mjs --bootstrap       # fetch ~290 days, train, simulate 30 days (about 8 minutes)
+node engine/backtest.mjs --days 365   # the one-year backtest (downloads Binance archive files, ~35 minutes)
 node engine/run.mjs                   # a normal run: replays everything since the last one
 node engine/serve.mjs                 # preview on http://localhost:8787
 ```

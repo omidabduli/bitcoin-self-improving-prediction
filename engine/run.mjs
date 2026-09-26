@@ -13,7 +13,7 @@
 import { MINUTE, DAY_MIN, HORIZONS, SYMBOL, LEAD_SYMBOL, PEER_SYMBOL, isIssue } from '../site/core/config.js';
 import { buildSeries, indexOf } from '../site/core/candles.js';
 import { D, WARMUP } from '../site/core/features.js';
-import { expertPredictions, EXPERTS } from '../site/core/models.js';
+import { expertPredictions, directionScores, EXPERTS } from '../site/core/models.js';
 import { Engine } from '../site/core/engine.js';
 import { emptyHorizonAggs, addResolution, mergeAgg, roundAgg } from '../site/core/metrics.js';
 import { fetchKlines, fetchFearGreed, lastHost } from './binance.mjs';
@@ -25,7 +25,7 @@ const args = process.argv.slice(2);
 const flag = (f) => args.includes(f);
 const opt = (f, d) => { const i = args.indexOf(f); return i >= 0 ? Number(args[i + 1]) : d; };
 const log = (...a) => console.log(...a);
-const FETCH_DAYS_TRAIN = 77; // 60-day max window + 10 validation days + 1-day targets + 3-day warm-up + margin
+const FETCH_DAYS_TRAIN = 262; // 240-day direction window + 10 validation days + 1-day targets + 7-day warm-up + margin
 const WARMUP_DAYS = opt('--warmup-days', 30);
 // how far back one run can backfill if GitHub didn't run the job for a while
 const REPLAY_DAYS = 7;
@@ -43,10 +43,10 @@ function siteVersion() {
 
 function csvRow(t, close, pred) {
   const base = `${isoMinute(t)},${close}`;
-  if (!pred) return base + ','.repeat(12);
+  if (!pred) return base + ','.repeat(5 * HORIZONS.length);
   return base + ',' + HORIZONS.map((h) => {
     const x = pred.h[h];
-    return [bps(x.ret, 2), x.p.toFixed(4), bps(x.lo[1], 1), bps(x.hi[1], 1)].join(',');
+    return [bps(x.ret, 2), x.p.toFixed(4), bps(x.lo[1], 1), bps(x.hi[1], 1), x.strong ? 1 : 0].join(',');
   }).join(',');
 }
 
@@ -107,8 +107,9 @@ async function main() {
     }
     if (i0 >= 0) {
       for (let i = Math.max(i0, 0); i < S.t.length; i++) {
-        const mus = i >= WARMUP && isIssue(S.t[i]) ? expertPredictions(model, ds.X, D, i) : null;
-        const { resolved, pred } = eng.step(S.t[i], S.c[i], ds.vol[i], mus);
+        const issue = i >= WARMUP && isIssue(S.t[i]);
+        const mus = issue ? expertPredictions(model, ds.X, D, i) : null;
+        const { resolved, pred } = eng.step(S.t[i], S.c[i], ds.vol[i], mus, issue ? directionScores(model, ds.X, D, i) : null);
         if (isIssue(S.t[i])) rowsOut.push(csvRow(S.t[i], S.c[i], pred));
         for (const r of resolved) {
           const dk = isoDay(r.t);

@@ -17,17 +17,20 @@ import { execFileSync } from 'node:child_process';
 import { HORIZONS, DAY_MIN, MINUTE, SYMBOL, LEAD_SYMBOL, PEER_SYMBOL, isIssue } from '../site/core/config.js';
 import { buildSeries } from '../site/core/candles.js';
 import { D } from '../site/core/features.js';
-import { EXPERTS, expertPredictions } from '../site/core/models.js';
+import { EXPERTS, expertPredictions, directionScores } from '../site/core/models.js';
 import { Engine, freshState } from '../site/core/engine.js';
 import { emptyHorizonAggs, addResolution, roundAgg } from '../site/core/metrics.js';
-import { makeDataset, fitExperts, residQuantiles, trainRows, evolve, GEN0 } from './train.mjs';
+import { makeDataset, fitExperts, residQuantiles, trainRows, evolve, fitDirection, GEN0, DIRECTION } from './train.mjs';
 import { ROOT, writeJSON } from './store.mjs';
 
 const args = process.argv.slice(2);
 const opt = (name, def) => { const i = args.indexOf(name); return i >= 0 ? Number(args[i + 1]) : def; };
 const DAYS = opt('--days', 365);
 const EVOLVE = args.includes('--evolve');
-const TRAIN_DAYS = 60 + 2 + 4; // longest training window + the 24 h target gap + feature warm-up
+const TRAIN_DAYS = Math.max(60, DIRECTION.window) + 2 + 8; // longest training window + the 24 h target gap + feature warm-up
+// The direction model's settings were chosen on the days up to this one only; later days are the
+// untouched check (see train.mjs DIRECTION).
+const TUNE_END = '2026-05-24';
 const CACHE = path.join(ROOT, '.cache', 'klines');
 const log = (...a) => console.log(...a);
 const isoDay = (ms) => new Date(ms).toISOString().slice(0, 10);
@@ -122,12 +125,13 @@ async function main() {
       ({ cfg } = evolve(sub, cfg, { seed: Math.floor(S.t[s] / 86400000), log: () => {} }));
       gens.push({ day: isoDay(S.t[s]), cfg: structuredClone(cfg) });
     }
-    const model = { experts: fitExperts(ds, s, cfg, 1 + d), resid: residQuantiles(ds, trainRows(ds, s, 30)) };
+    const model = { experts: fitExperts(ds, s, cfg, 1 + d), resid: residQuantiles(ds, trainRows(ds, s, 30)), direction: fitDirection(ds, s, 1 + d) };
     eng.model = model;
     for (let i = s; i < e; i++) {
-      const mus = isIssue(S.t[i]) ? expertPredictions(model, ds.X, D, i) : null;
-      const { resolved, pred } = eng.step(S.t[i], S.c[i], ds.vol[i], mus);
-      if (pred) preds.set(pred.t, { c: pred.c, h: Object.fromEntries(HORIZONS.map((h) => [h, { med: pred.h[h].med, p: pred.h[h].p, lo: pred.h[h].lo[1], hi: pred.h[h].hi[1] }])), y: {} });
+      const issue = isIssue(S.t[i]);
+      const mus = issue ? expertPredictions(model, ds.X, D, i) : null;
+      const { resolved, pred } = eng.step(S.t[i], S.c[i], ds.vol[i], mus, issue ? directionScores(model, ds.X, D, i) : null);
+      if (pred) preds.set(pred.t, { c: pred.c, h: Object.fromEntries(HORIZONS.map((h) => [h, { med: pred.h[h].med, p: pred.h[h].p, s: pred.h[h].strong, lo: pred.h[h].lo[1], hi: pred.h[h].hi[1] }])), y: {} });
       for (const r of resolved) {
         const dk = isoDay(r.t);
         addResolution((byDay[dk] ||= emptyHorizonAggs())[r.h], r);
@@ -135,7 +139,7 @@ async function main() {
         if (!p) continue;
         p.y[r.h] = r.y;
         if (Object.keys(p.y).length === HORIZONS.length) {
-          (rows[dk.slice(0, 7)] ||= []).push([isoMinute(r.t), p.c, ...HORIZONS.flatMap((h) => [bps(p.h[h].med, 1), p.h[h].p.toFixed(4), bps(p.h[h].lo, 1), bps(p.h[h].hi, 1), bps(p.y[h], 1)])].join(','));
+          (rows[dk.slice(0, 7)] ||= []).push([isoMinute(r.t), p.c, ...HORIZONS.flatMap((h) => [bps(p.h[h].med, 1), p.h[h].p.toFixed(4), p.h[h].s ? 1 : 0, bps(p.h[h].lo, 1), bps(p.h[h].hi, 1), bps(p.y[h], 1)])].join(','));
           preds.delete(r.t);
         }
       }
@@ -147,12 +151,13 @@ async function main() {
   const dir = path.join(ROOT, 'data', 'backtest');
   fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
-  const header = 'issued_utc,price,' + HORIZONS.map((h) => `${h / 60}h_est_bp,${h / 60}h_p_up,${h / 60}h_lo80_bp,${h / 60}h_hi80_bp,${h / 60}h_actual_bp`).join(',');
+  const header = 'issued_utc,price,' + HORIZONS.map((h) => `${h / 60}h_est_bp,${h / 60}h_p_up,${h / 60}h_confident,${h / 60}h_lo80_bp,${h / 60}h_hi80_bp,${h / 60}h_actual_bp`).join(',');
   for (const [m, lines] of Object.entries(rows)) fs.writeFileSync(path.join(dir, `${m}.csv`), header + '\n' + lines.join('\n') + '\n');
   const days = {};
   for (const [dk, agg] of Object.entries(byDay)) days[dk] = Object.fromEntries(HORIZONS.map((h) => [h, roundAgg(agg[h])]));
   writeJSON('backtest.json', {
-    note: `Walk-forward backtest over ${DAYS} days: each day the experts were refit on earlier data only${EVOLVE ? ' and the daily evolution ran as in production' : ''}, then the full online system (trust weights, conformal ranges, calibration) was stepped minute by minute. Every forecast is in data/backtest/. The live record is what counts.`,
+    note: `Walk-forward backtest over ${DAYS} days: each day the experts and the direction model were refit on earlier data only${EVOLVE ? ' and the daily evolution ran as in production' : ''}, then the full online system (trust weights, conformal ranges, calibration) was stepped minute by minute. The direction model's settings were picked using the days up to ${TUNE_END} only; the days after it are the untouched check. Every forecast is in data/backtest/. The live record is what counts.`,
+    tuneEnd: TUNE_END,
     from: isoMinute(S.t[s0]),
     to: isoMinute(S.t[ds.n - 1]),
     evolve: EVOLVE,

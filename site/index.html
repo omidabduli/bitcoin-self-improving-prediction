@@ -72,11 +72,11 @@
 <section class="block" id="record"><div class="wrap">
   <div class="sec-head">
     <div><p class="eyebrow">Record · <span id="liveSince">live</span></p><h2>How good it <em>really</em> is</h2></div>
-    <p>Direction counts only forecasts that don't overlap (one per hour, one per 3 hours, one per day), so a single lucky move isn't counted many times. 50% is a coin flip. The goal is 54% at 1 hour. The range should hold close to 80% of the time.</p>
+    <p>Direction counts only forecasts that don't overlap (one per hour, one per 3 hours, one per day), so a single lucky move isn't counted many times. 50% is a coin flip. A confident call is one where the direction model's signal is stronger than usual (about half of all calls). The goal is 54% on confident calls at 1 and 3 hours. The range should hold close to 80% of the time.</p>
   </div>
   <div class="table-wrap">
     <table class="scores" id="scores">
-      <thead><tr><th>Horizon</th><th>Direction right</th><th>Range held (aim 80%)</th><th>Typical miss</th><th>Forecasts checked</th></tr></thead>
+      <thead><tr><th>Horizon</th><th>Direction right</th><th>Confident calls right</th><th>Range held (aim 80%)</th><th>Typical miss</th><th>Forecasts checked</th></tr></thead>
       <tbody></tbody>
     </table>
   </div>
@@ -99,16 +99,24 @@
   </div>
   <div class="table-wrap">
     <table class="scores" id="btScores">
-      <thead><tr><th>Horizon</th><th>Direction right</th><th>Range held (aim 80%)</th><th>Typical miss</th><th>Forecasts checked</th></tr></thead>
-      <tbody><tr><td colspan="5">Loading the backtest…</td></tr></tbody>
+      <thead><tr><th>Horizon</th><th>Direction right</th><th>Confident calls right</th><th>Range held (aim 80%)</th><th>Typical miss</th><th>Forecasts checked</th></tr></thead>
+      <tbody><tr><td colspan="6">Loading the backtest…</td></tr></tbody>
     </table>
   </div>
   <p class="note" id="btNote"></p>
 
+  <div id="btSplitWrap">
+    <h3 class="sub-h">Before and after the settings were chosen</h3>
+    <div class="table-wrap">
+      <table class="months" id="btSplit"><thead id="btSplitHead"></thead><tbody></tbody></table>
+    </div>
+    <p class="note" id="btSplitNote"></p>
+  </div>
+
   <h3 class="sub-h">Month by month</h3>
   <div class="table-wrap">
     <table class="months" id="btMonths">
-      <thead><tr><th></th><th colspan="3" class="grp">Direction right</th><th colspan="3" class="grp">Range held (aim 80%)</th></tr><tr><th>Month</th><th>1 h</th><th>3 h</th><th>24 h</th><th>1 h</th><th>3 h</th><th>24 h</th></tr></thead>
+      <thead><tr><th></th><th colspan="2" class="grp">Confident calls right</th><th colspan="3" class="grp">All calls right</th><th colspan="3" class="grp">Range held (aim 80%)</th></tr><tr><th>Month</th><th>1 h</th><th>3 h</th><th>1 h</th><th>3 h</th><th>24 h</th><th>1 h</th><th>3 h</th><th>24 h</th></tr></thead>
       <tbody></tbody>
     </table>
   </div>
@@ -134,13 +142,14 @@
     <p>In plain words. Nothing runs on a server: your browser does all of this with the published model. Every 15 minutes a GitHub job replays the same minutes with the same code and saves the official record.</p>
   </div>
   <ol class="steps">
-    <li><span class="yr">01</span><h3>Look at the market</h3><p>It takes the last three days of minute-by-minute prices for Bitcoin, Ethereum and Solana, plus the daily crypto Fear &amp; Greed index.</p></li>
-    <li><span class="yr">02</span><h3>Turn that into signals</h3><p>About 40 of them, like "Bitcoin rose 2% in the last 6 hours", "Ethereum just moved but Bitcoin hasn't followed yet" or "the price is near the top of today's range".</p></li>
+    <li><span class="yr">01</span><h3>Look at the market</h3><p>It takes the last week of minute-by-minute prices for Bitcoin, Ethereum and Solana, plus the daily crypto Fear &amp; Greed index.</p></li>
+    <li><span class="yr">02</span><h3>Turn that into signals</h3><p>About 55 of them, like "Bitcoin rose 2% in the last 6 hours", "Ethereum just moved but Bitcoin hasn't followed yet" or "the price is near the top of today's range".</p></li>
     <li><span class="yr">03</span><h3>Ask six experts</h3><p>Each expert reads different signals and guesses the move. One of them, the Skeptic, always says "no change". Their weighted average is the price estimate.</p></li>
-    <li><span class="yr">04</span><h3>Draw the range</h3><p>How far Bitcoin has been moving lately sets the width of the range. If it has swung about 0.5% an hour recently, the 1-hour range is about that wide.</p></li>
-    <li><span class="yr">05</span><h3>Check every forecast</h3><p>When a forecast's time comes, it is compared with the real price. Experts that were closer get more say next time, like listening more to the advisers who were right lately.</p></li>
-    <li><span class="yr">06</span><h3>Correct itself</h3><p>A range that missed gets wider and one that held gets narrower, until it holds 8 times out of 10. If it said "55% up" but such calls came true only half the time, it tones itself down.</p></li>
-    <li><span class="yr">07</span><h3>Retrain every night</h3><p>At midnight UTC every expert is retrained on the latest 60 days. Changed settings then compete with the current ones on the last ten days, and win only if they are clearly and consistently better.</p></li>
+    <li><span class="yr">04</span><h3>Call the direction</h3><p>A separate model only learns whether the price went up or down, not by how much, so a few huge swings can't drown out the pattern. When its signal is stronger than usual, the call is marked confident.</p></li>
+    <li><span class="yr">05</span><h3>Draw the range</h3><p>How far Bitcoin has been moving lately sets the width of the range. If it has swung about 0.5% an hour recently, the 1-hour range is about that wide.</p></li>
+    <li><span class="yr">06</span><h3>Check every forecast</h3><p>When a forecast's time comes, it is compared with the real price. Experts that were closer get more say next time, like listening more to the advisers who were right lately.</p></li>
+    <li><span class="yr">07</span><h3>Correct itself</h3><p>A range that missed gets wider and one that held gets narrower, until it holds 8 times out of 10. If it said "55% up" but such calls came true only half the time, it tones itself down.</p></li>
+    <li><span class="yr">08</span><h3>Retrain every night</h3><p>At midnight UTC every expert is retrained on the latest 60 days, and the direction model on the latest 240. Changed settings then compete with the current ones on the last ten days, and win only if they are clearly and consistently better.</p></li>
   </ol>
 
   <h3 class="sub-h">The experts and how much they are trusted now</h3>
