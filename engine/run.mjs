@@ -77,7 +77,7 @@ async function main() {
   // bootstrap also simulates WARMUP_DAYS before today, each with a full training window
   const fromMs = needTrain
     ? lastClosed - (FETCH_DAYS_TRAIN + (bootstrap ? WARMUP_DAYS : 0)) * DAY_MIN * MINUTE
-    : Math.max(state.t - (WARMUP + 5) * MINUTE, lastClosed - REPLAY_DAYS * DAY_MIN * MINUTE);
+    : Math.max(state.t, lastClosed - REPLAY_DAYS * DAY_MIN * MINUTE) - (WARMUP + 5) * MINUTE; // + the features' warm-up
   const tf = Date.now();
   const [ada, btc, eth, fng] = await Promise.all([
     fetchKlines(SYMBOL, fromMs, lastClosed),
