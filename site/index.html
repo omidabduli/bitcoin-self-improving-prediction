@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Bitcast · Bitcoin price forecast, checked in public</title>
-  <meta name="description" content="Where the Bitcoin (BTC) price is likely to be in 1 hour, 3 hours and 24 hours, with an honest range. A new forecast every 15 minutes; every forecast is logged and checked in public.">
+  <meta name="description" content="Where the Bitcoin (BTC) price is likely to be in 1 hour, 3 hours and 24 hours. A new prediction every 15 minutes; every one is logged and checked in public.">
   <meta property="og:title" content="Bitcast · Bitcoin price forecast, checked in public">
-  <meta property="og:description" content="BTC in 1 hour, 3 hours and 24 hours: a price estimate and a range, renewed every 15 minutes and scored in public.">
+  <meta property="og:description" content="BTC in 1 hour, 3 hours and 24 hours: one price, renewed every 15 minutes and scored in public.">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Bitcast">
   <meta property="og:url" content="https://omidabduli.github.io/bitcoin-self-improving-prediction/">
@@ -30,7 +30,6 @@
   <ul>
     <li><a href="#chart">Chart</a></li>
     <li><a href="#record">Record</a></li>
-    <li><a href="#backtest">Backtest</a></li>
     <li><a href="#method">Method</a></li>
     <li><a class="btn primary nav-btn" id="ghLink" href="https://github.com/omidabduli/bitcoin-self-improving-prediction">GitHub</a></li>
   </ul>
@@ -39,7 +38,7 @@
 <header class="hero" id="top"><div class="wrap">
   <p class="eyebrow">BTC / USDT · live from Binance · <span id="liveState" class="live">connecting</span></p>
   <h1>Where Bitcoin is <em>likely</em> to trade next.</h1>
-  <p class="lede">Every 15 minutes a small self-correcting model estimates the Bitcoin price 1 hour, 3 hours and 24 hours ahead, with a range it expects to hold 8 times out of 10. Every forecast is logged, then checked in public.</p>
+  <p class="lede">Every 15 minutes a small self-correcting model predicts the Bitcoin price 1 hour, 3 hours and 24 hours ahead. Every prediction is logged, then checked in public.</p>
 
   <div class="now">
     <span class="now-price" id="price">—</span>
@@ -49,22 +48,20 @@
   <div class="forecasts" id="forecasts" aria-live="polite">
     <div class="fc"><p class="eyebrow">Loading the model…</p></div>
   </div>
-  <p class="fc-legend"><span><i class="lg-now"></i>price when the forecast was made</span><span><i class="lg-live"></i>price now</span><span><i class="lg-est"></i>estimate</span><span><i class="lg-band"></i>80% likely range</span></p>
   <p class="facts" id="issueLine">&nbsp;</p>
   <p class="banner" id="banner" hidden></p>
 </div></header>
 
 <section class="block alt" id="chart"><div class="wrap">
   <div class="sec-head">
-    <div><p class="eyebrow">Chart</p><h2>The last day, and the range ahead</h2></div>
-    <p>The dark line is the price. The shaded band is where the 1-hour forecasts expected it to be, drawn at the moment each one was checked. On the right: the current 1-hour, 3-hour and 24-hour ranges.</p>
+    <div><p class="eyebrow">Chart</p><h2>Prediction <em>vs.</em> reality</h2></div>
+    <p>The light line is what the price did. The orange line is the prediction: on the left, what the model said one hour earlier; on the right, where it expects the price to go next.</p>
   </div>
   <figure class="figure">
-    <svg id="chartSvg" class="chart" role="img" aria-label="Bitcoin price over the last 24 hours with forecast ranges"></svg>
+    <svg id="chartSvg" class="chart" role="img" aria-label="Bitcoin price over the last 24 hours and the model's prediction"></svg>
     <figcaption class="legend">
       <span><i class="k k-price"></i>Price</span>
-      <span><i class="k k-band"></i>80% range forecast one hour earlier</span>
-      <span><i class="k k-now"></i>Current forecast, median and 80% range</span>
+      <span><i class="k k-pred"></i>Prediction</span>
     </figcaption>
   </figure>
 </div></section>
@@ -72,108 +69,38 @@
 <section class="block" id="record"><div class="wrap">
   <div class="sec-head">
     <div><p class="eyebrow">Record · <span id="liveSince">live</span></p><h2>How good it <em>really</em> is</h2></div>
-    <p>Direction counts only forecasts that don't overlap (one per hour, one per 3 hours, one per day), so a single lucky move isn't counted many times. 50% is a coin flip. A confident call is one where the direction model's signal is stronger than usual (about half of all calls). The goal is 54% on confident calls at 1 and 3 hours. The range should hold close to 80% of the time.</p>
+    <p>How often the model called the direction right. 50% is a coin flip; the goal is 54%. Confident calls are the half where its signal is strongest. The past-year test replayed the same system over the last 12 months, training only on data from before each day.</p>
   </div>
   <div class="table-wrap">
     <table class="scores" id="scores">
-      <thead><tr><th>Horizon</th><th>Direction right</th><th>Confident calls right</th><th>Range held (aim 80%)</th><th>Typical miss</th><th>Forecasts checked</th></tr></thead>
+      <thead><tr><th>Horizon</th><th>Live</th><th>Past-year test</th></tr></thead>
       <tbody></tbody>
     </table>
   </div>
   <p class="note" id="recordNote"></p>
 
-  <h3 class="sub-h">Latest checked forecasts</h3>
+  <h3 class="sub-h">Latest checked predictions</h3>
   <div class="table-wrap">
     <table class="log" id="log">
-      <thead><tr><th>Made</th><th>For</th><th>Forecast</th><th>80% range</th><th>Actual</th><th>Result</th></tr></thead>
+      <thead><tr><th>Made</th><th>For</th><th>Predicted</th><th>Actual</th><th>Direction</th></tr></thead>
       <tbody></tbody>
     </table>
   </div>
-  <p class="note">All forecasts: <a id="csvLink" href="#">CSV files on GitHub</a>, one row every 15 minutes.</p>
+  <p class="note">Every prediction: <a id="csvLink" href="#">live</a> and <a id="btCsvLink" href="#">past-year test</a>, as CSV files on GitHub.</p>
 </div></section>
 
-<section class="block alt" id="backtest"><div class="wrap">
-  <div class="sec-head">
-    <div><p class="eyebrow">Backtest · <span id="btSpan">the past year</span></p><h2>The same system, <em>replayed</em> on the past year</h2></div>
-    <p>Before going live, the whole system was run over the past year as if it had been live: each day it could only train on the days before, then it made a forecast every 15 minutes and was checked, exactly like now. Same code, same scoring as the live record above.</p>
-  </div>
-  <div class="table-wrap">
-    <table class="scores" id="btScores">
-      <thead><tr><th>Horizon</th><th>Direction right</th><th>Confident calls right</th><th>Range held (aim 80%)</th><th>Typical miss</th><th>Forecasts checked</th></tr></thead>
-      <tbody><tr><td colspan="6">Loading the backtest…</td></tr></tbody>
-    </table>
-  </div>
-  <p class="note" id="btNote"></p>
-
-  <div id="btSplitWrap">
-    <h3 class="sub-h">Before and after the settings were chosen</h3>
-    <div class="table-wrap">
-      <table class="months" id="btSplit"><thead id="btSplitHead"></thead><tbody></tbody></table>
-    </div>
-    <p class="note" id="btSplitNote"></p>
-  </div>
-
-  <h3 class="sub-h">Month by month</h3>
-  <div class="table-wrap">
-    <table class="months" id="btMonths">
-      <thead><tr><th></th><th colspan="2" class="grp">Confident calls right</th><th colspan="3" class="grp">All calls right</th><th colspan="3" class="grp">Range held (aim 80%)</th></tr><tr><th>Month</th><th>1 h</th><th>3 h</th><th>1 h</th><th>3 h</th><th>24 h</th><th>1 h</th><th>3 h</th><th>24 h</th></tr></thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <div class="sub-row">
-    <h3 class="sub-h">Latest backtest forecasts</h3>
-    <div class="seg" id="btSeg" role="group" aria-label="Horizon">
-      <button type="button" data-h="60" aria-pressed="true">1 h</button><button type="button" data-h="180" aria-pressed="false">3 h</button><button type="button" data-h="1440" aria-pressed="false">24 h</button>
-    </div>
-  </div>
-  <div class="table-wrap">
-    <table class="log" id="btLog">
-      <thead><tr><th>Made</th><th>For</th><th>Forecast</th><th>80% range</th><th>Actual</th><th>Result</th></tr></thead>
-      <tbody></tbody>
-    </table>
-  </div>
-  <p class="note">Every backtest forecast: <a id="btCsvLink" href="#">CSV files on GitHub</a>, one row every 15 minutes, with what actually happened.</p>
-</div></section>
-
-<section class="block" id="method"><div class="wrap">
+<section class="block alt" id="method"><div class="wrap">
   <div class="sec-head">
     <div><p class="eyebrow">Method</p><h2>How it predicts, and how it learns</h2></div>
-    <p>In plain words. Nothing runs on a server: your browser does all of this with the published model. Every 15 minutes a GitHub job replays the same minutes with the same code and saves the official record.</p>
+    <p>No server: your browser runs the published model on the live market. Every 15 minutes a GitHub job does the same and saves the official record.</p>
   </div>
   <ol class="steps">
-    <li><span class="yr">01</span><h3>Look at the market</h3><p>It takes the last week of minute-by-minute prices for Bitcoin, Ethereum and Solana, plus the daily crypto Fear &amp; Greed index.</p></li>
-    <li><span class="yr">02</span><h3>Turn that into signals</h3><p>About 55 of them, like "Bitcoin rose 2% in the last 6 hours", "Ethereum just moved but Bitcoin hasn't followed yet" or "the price is near the top of today's range".</p></li>
-    <li><span class="yr">03</span><h3>Ask six experts</h3><p>Each expert reads different signals and guesses the move. One of them, the Skeptic, always says "no change". Their weighted average is the price estimate.</p></li>
-    <li><span class="yr">04</span><h3>Call the direction</h3><p>A separate model only learns whether the price went up or down, not by how much, so a few huge swings can't drown out the pattern. When its signal is stronger than usual, the call is marked confident.</p></li>
-    <li><span class="yr">05</span><h3>Draw the range</h3><p>How far Bitcoin has been moving lately sets the width of the range. If it has swung about 0.5% an hour recently, the 1-hour range is about that wide.</p></li>
-    <li><span class="yr">06</span><h3>Check every forecast</h3><p>When a forecast's time comes, it is compared with the real price. Experts that were closer get more say next time, like listening more to the advisers who were right lately.</p></li>
-    <li><span class="yr">07</span><h3>Correct itself</h3><p>A range that missed gets wider and one that held gets narrower, until it holds 8 times out of 10. If it said "55% up" but such calls came true only half the time, it tones itself down.</p></li>
-    <li><span class="yr">08</span><h3>Retrain every night</h3><p>At midnight UTC every expert is retrained on the latest 60 days, and the direction model on the latest 240. Changed settings then compete with the current ones on the last ten days, and win only if they are clearly and consistently better.</p></li>
+    <li><span class="yr">01</span><h3>Look at the market</h3><p>The last week of minute-by-minute prices for Bitcoin, Ethereum and Solana, plus the daily crypto Fear &amp; Greed index.</p></li>
+    <li><span class="yr">02</span><h3>Call the direction</h3><p>A model that only learns whether the price went up or down, not by how much, so a few huge swings can't drown out the pattern.</p></li>
+    <li><span class="yr">03</span><h3>Put a number on it</h3><p>The call and how far Bitcoin has been moving lately give one predicted price for 1 hour, 3 hours and 24 hours.</p></li>
+    <li><span class="yr">04</span><h3>Check every prediction</h3><p>When its time comes, each prediction is compared with the real price and scored in public.</p></li>
+    <li><span class="yr">05</span><h3>Learn every night</h3><p>At midnight UTC every model is retrained on the latest data. New settings only replace the old ones if they are clearly better on days they haven't seen.</p></li>
   </ol>
-
-  <h3 class="sub-h">The experts and how much they are trusted now</h3>
-  <div class="table-wrap">
-    <table class="council" id="council">
-      <thead><tr><th>Expert</th><th>Reads</th><th>Trust · 1 h</th><th>Trust · 3 h</th><th>Trust · 24 h</th></tr></thead>
-      <tbody></tbody>
-    </table>
-  </div>
-  <p class="note" id="evoNote"></p>
-</div></section>
-
-<section class="block"><div class="wrap">
-  <div class="closing">
-    <div>
-      <p class="eyebrow">An honest limit</p>
-      <h2>Can it get close to 100%? No.</h2>
-    </div>
-    <div class="closing-text">
-      <p>Nobody can reliably call the direction of a liquid market hours ahead. In the one-year backtest above, direction came out between 48% and 52% at every horizon, and on Cardano every combination of signals we tried landed between 48% and 54%: noise around a coin flip. What can be forecast honestly is how far the price is likely to move. That is what the range shows, and it is checked every day.</p>
-      <p>If a real edge appears, the ensemble and the daily evolution are built to find it, and the record above will show it. This is a public experiment, not financial advice.</p>
-      <p><b>The goal is 54% at 1 hour.</b> Professional short-term traders are happy with 51 to 55%. Held over hundreds of independent forecasts, 54% would be a real edge, not luck.</p>
-    </div>
-  </div>
 </div></section>
 
 <footer><div class="wrap">

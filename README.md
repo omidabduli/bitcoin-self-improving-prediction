@@ -66,7 +66,7 @@ Six "experts" look at the market in different ways:
 | Linear Brain | A regularised regression on the signals that evolution picked |
 | Boosted Forest | Gradient-boosted trees on the same signals, for non-linear patterns |
 
-Next to them sits the **direction model**: a ridge regression and gradient-boosted trees trained on the sign of the move only (up or down), on all 55 signals and the last 240 days. It decides the up/down call and its probability. The six experts decide the price estimate and the range.
+Next to them sits the **direction model**: a ridge regression and gradient-boosted trees trained on the sign of the move only (up or down), on all 55 signals and the last 240 days. It decides the up/down call and its probability. The page shows one predicted price per horizon: the call times how far Bitcoin typically moves in that time (read off the calibrated 80% range, which the six experts and the online learners keep honest). The range itself isn't shown anymore; it was more confusing than useful.
 
 After every result, four things happen:
 
