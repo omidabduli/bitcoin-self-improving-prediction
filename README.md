@@ -36,16 +36,16 @@ Then I ran the same thing on Bitcoin for a full year. Same result at first: the 
 
 What did change it was one idea: **train a model only on whether the price went up or down, not on by how much.** A model that learns the size of moves is pushed around by a few huge swings. A model that learns only the direction isn't, and direction is exactly what "right or wrong" measures. I searched for the best version of that idea using only the first eight months (24 Sep 2025 to 24 May 2026) and didn't look at the last four until the choice was made. Then I ran the whole system over the full year, refitting every day on past data only:
 
-| Bitcoin, 25 Sep 2025 to 24 Sep 2026 | 1 hour | 3 hours | 24 hours |
+| Bitcoin, 27 Sep 2025 to 26 Sep 2026 | 1 hour | 3 hours | 24 hours |
 |---|---|---|---|
-| Confident calls right (independent) | **54.2%** of 4,527 | **54.0%** of 1,535 | 45.7% of 173 |
-| ... in the eight months used for choosing | 53.6% | 53.7% | 45.0% |
-| ... in the four untouched months | **55.4%** | **54.5%** | 46.9% |
-| All calls right (independent) | 52.5% of 8,759 | 53.4% of 2,919 | 47.0% of 364 |
-| 80% range held | 80.0% | 80.0% | 79.8% |
+| Confident calls right (independent) | **54.2%** of 4,530 | **54.1%** of 1,522 | 46.0% of 176 |
+| ... in the eight months used for choosing | 53.9% | 54.4% | 45.8% |
+| ... in the four untouched months | **54.7%** | **53.7%** | 46.4% |
+| All calls right (independent) | 52.3% of 8,747 | 53.9% of 2,915 | 47.9% of 363 |
+| 80% range held | 80.0% | 80.0% | 79.9% |
 | Typical miss vs. "no change" | 0.31% vs. 0.31% | 0.54% vs. 0.54% | 1.66% vs. 1.66% |
 
-A confident call is one where the direction model's signal is stronger than its usual (the median on its own training data), so about half of all calls. At 1 hour, 54.2% over 4,527 calls is 5.7 standard deviations away from a coin flip. That is very unlikely to be luck, and it held up in the months I didn't use for choosing. At 24 hours there is still no edge, and I'm not pretending there is.
+A confident call is one where the direction model's signal is stronger than its usual (the median on its own training data), so about half of all calls. At 1 hour, 54.2% over 4,530 calls is 5.6 standard deviations away from a coin flip. That is very unlikely to be luck, and it held up in the months I didn't use for choosing. At 24 hours there is still no edge, and I'm not pretending there is.
 
 It is still a backtest. Markets change, and a pattern that worked for a year can fade. That's why the live record sits right next to it on the page, scored the same way, and the goal stays public: 54% on confident calls at 1 and 3 hours.
 
