@@ -2,7 +2,7 @@
 
 **Live: https://omidabduli.github.io/bitcoin-self-improving-prediction/**
 
-A small learning project. Every 15 minutes it guesses whether the Bitcoin price will be higher in 1 hour and in 3 hours. Later it checks each guess against the real price and keeps the score in public.
+A small learning project. Every 15 minutes it guesses whether the Bitcoin price will be higher in 1, 3 and 24 hours. Later it checks each guess against the real price and keeps the score in public.
 
 It has a twin for Cardano, [ADAptive](https://github.com/omidabduli/cardano-self-improving-prediction). The code is the same and only the coin is different.
 
@@ -12,7 +12,7 @@ I love prediction, and I wanted to learn how it really works. Nassim Taleb and R
 
 ## What I found
 
-Mostly that it is hard. On a year of data I never used for tuning (September 2024 to September 2025), the model called the direction right 54.4% of the time at 1 hour and 54.2% at 3 hours. That is a little better than a coin flip. At 24 hours it was worse than a coin flip, so it makes no call there. No formula for the size of the move beat simply using today's price.
+Mostly that it is hard. On a year of data I never used for tuning (September 2024 to September 2025), the model called the direction right 54.4% of the time at 1 hour and 54.2% at 3 hours. That is a little better than a coin flip. At 24 hours it was worse than a coin flip. I still show that call, and the live record will say if it's worth anything. No formula for the size of the move beat simply using today's price.
 
 So please don't trade on it. At these numbers, fees would eat the difference.
 
