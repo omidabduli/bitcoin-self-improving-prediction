@@ -55,15 +55,15 @@
 
 <section class="block alt" id="chart"><div class="wrap">
   <div class="sec-head">
-    <div><p class="eyebrow">Chart</p><h2>Prediction <em>vs.</em> reality</h2></div>
-    <p>Orange is the prediction, the dark line is the real price. The triangles are the 1-hour calls, filled when they were right.</p>
+    <div><p class="eyebrow">Chart</p><h2>Guess <em>vs.</em> reality</h2></div>
+    <p>The line is the real price. The band shows where the model expected the price to be an hour later. The triangles are its hourly up or down calls, filled when they were right.</p>
   </div>
   <figure class="figure">
     <svg id="chartSvg" class="chart" role="img" aria-label="Bitcoin price over the last 24 hours and the model's prediction"></svg>
     <figcaption class="legend">
       <span><i class="k k-price"></i>Price</span>
-      <span><i class="k k-pred"></i>Prediction</span>
-      <span><i class="k k-call"><b class="right">▲</b> <b class="wrong">▽</b></i>1-hour call: filled when it came true</span>
+      <span><i class="k k-band"></i>Expected range (80%)</span>
+      <span><i class="k k-call"><b class="right">▲</b> <b class="wrong">▽</b></i>1-hour call, filled when it was right</span>
     </figcaption>
   </figure>
 </div></section>
@@ -71,7 +71,7 @@
 <section class="block" id="record"><div class="wrap">
   <div class="sec-head">
     <div><p class="eyebrow">Record · <span id="liveSince">live</span></p><h2>How often it was right</h2></div>
-    <p>50% is what a coin flip would get. The past-year test runs the same model over the last 12 months, using only data it could have had at the time. More in the <a href="https://github.com/omidabduli/bitcoin-self-improving-prediction/blob/main/docs/EXPERIMENTS.md">experiment report</a>.</p>
+    <p>50% is what a coin flip would get. Even at 53%, trading fees would likely eat the difference. The past-year test runs the same model over the last 12 months, using only data it could have had at the time. More in the <a href="https://github.com/omidabduli/bitcoin-self-improving-prediction/blob/main/docs/EXPERIMENTS.md">experiment report</a>.</p>
   </div>
   <div class="table-wrap">
     <table class="scores" id="scores">
