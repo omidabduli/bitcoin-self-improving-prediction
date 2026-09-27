@@ -20,38 +20,38 @@ And honestly, there is a joy in it that is hard to describe. When you build a mo
 
 ## What it does
 
-Every 15 minutes (at :00, :15, :30 and :45 UTC) it publishes three forecasts: Bitcoin in 1 hour, 3 hours and 24 hours. Each one has a price, an 80% range and a probability that the price will be higher. Every forecast is committed to this repository before the outcome is known, and checked when its time comes.
+Every 15 minutes (at :00, :15, :30 and :45 UTC) it says how likely Bitcoin is to be higher in 1 hour and in 3 hours, and gives its best estimate of the price. At 24 hours it makes no call, for reasons below. Every forecast goes into a public record in this repository. Each row says when it was computed, and whether that was on time or filled in later after a missed run. Only the on-time ones count in the score.
 
-There is no server. When you open the page, your browser runs the published model on the live Binance feed and computes every forecast and every score up to the current minute. A GitHub Actions job is the notary: every 15 minutes it replays the same minutes with the same code and commits the official record. GitHub's own timer only fires a few times a day, so a free [cron-job.org](https://cron-job.org) job starts it at minute 1, 16, 31 and 46 of every hour. I checked that the browser and the record give the same numbers, to the last digit.
+There is no server. When you open the page, your browser runs the published model on the live Binance feed and computes every forecast up to the current minute. A GitHub Actions job is the notary: every 15 minutes it replays the same minutes with the same code and commits the official record. GitHub's own timer only fires a few times a day, so a free [cron-job.org](https://cron-job.org) job starts it at minute 1, 16, 31 and 46 of every hour. The browser and the record use the same code, so they give the same numbers.
 
 ## What to expect (the realistic part)
 
-I built and tested this system on Cardano first, over 300 days of history, walking forward day by day and only ever training on the past:
+I built and tested this system on Cardano first, over 300 days of history, walking forward day by day and only ever training on the past. The direction came out as a coin flip, the price estimate as good as "no change". Only the ranges worked.
 
-- **Direction was a coin flip.** Every combination of signals I tried called the 1 h, 3 h and 24 h direction right between 48% and 54% of the time.
-- **The price estimate was about as good as "no change".**
-- **The range was the part that worked.** The 50%, 80% and 95% ranges held 50%, 80% and 95% of the time.
+What changed that was one idea: **train a model only on whether the price went up or down, not on by how much.** A model that learns the size of moves is pushed around by a few huge swings. A model that learns only the direction isn't, and direction is exactly what "right or wrong" measures. I chose its settings on eight months of Bitcoin, 24 September 2025 to 24 May 2026.
 
-Then I ran the same thing on Bitcoin for a full year. Same result at first: the ranges were right, the direction was a coin flip (50.5% at 1 hour). Nine small variations of the settings didn't change that.
+In September 2026 I asked someone to review the whole project, and the review was right on every point:
+- The page showed a different price from the one that was scored.
+- The system forgot fifteen times more slowly than I had written down.
+- Nothing proved that a forecast had been published before its outcome was known.
 
-What did change it was one idea: **train a model only on whether the price went up or down, not on by how much.** A model that learns the size of moves is pushed around by a few huge swings. A model that learns only the direction isn't, and direction is exactly what "right or wrong" measures. I searched for the best version of that idea using only the first eight months (24 Sep 2025 to 24 May 2026) and didn't look at the last four until the choice was made. Then I ran the whole system over the full year, refitting every day on past data only:
+I fixed all of it (more on that below). Then I tested the direction model on the year before, 24 September 2024 to 23 September 2025, which neither project had ever used for anything:
 
-| Bitcoin, 27 Sep 2025 to 26 Sep 2026 | 1 hour | 3 hours | 24 hours |
+| Bitcoin, the untouched year | 1 hour | 3 hours | 24 hours |
 |---|---|---|---|
-| Confident calls right (independent) | **54.2%** of 4,530 | **54.1%** of 1,522 | 46.0% of 176 |
-| ... in the eight months used for choosing | 53.9% | 54.4% | 45.8% |
-| ... in the four untouched months | **54.7%** | **53.7%** | 46.4% |
-| All calls right (independent) | 52.3% of 8,747 | 53.9% of 2,915 | 47.9% of 363 |
-| 80% range held | 80.0% | 80.0% | 79.9% |
-| Typical miss vs. "no change" | 0.31% vs. 0.31% | 0.54% vs. 0.54% | 1.66% vs. 1.66% |
+| Strong-signal calls right | **55.6%** of 4,408 | **56.4%** of 1,475 | no call |
+| All calls right | 54.4% of 7,647 | 54.2% of 2,484 | no call |
+| 95% range, all calls | 53.4 to 55.3% | 52.7 to 55.8% | |
 
-A confident call is one where the direction model's signal is stronger than its usual (the median on its own training data), so about half of all calls. At 1 hour, 54.2% over 4,530 calls is 5.6 standard deviations away from a coin flip. That is very unlikely to be luck, and it held up in the months I didn't use for choosing. At 24 hours there is still no edge, and I'm not pretending there is.
+A strong-signal call is one whose signal is at least the median of the last 7 days of forecasts, so about half of them. Only calls that don't overlap are counted, one per hour or one per 3 hours. The ranges come from resampling whole weeks, because neighbouring hours share the same market. The same system held up on Cardano's untouched year too: 54.3% on strong-signal calls at 1 hour and at 3 hours.
 
-It is still a backtest. Markets change, and a pattern that worked for a year can fade. That's why the live record sits right next to it on the page, scored the same way, and the goal stays public: 54% on confident calls at 1 and 3 hours.
+Two things didn't survive the test:
+- **24 hours.** The 24-hour direction model was right less than half the time in every period, on both coins. So the page makes no call at 24 hours. The model keeps running in the background, and the record will show if that changes.
+- **The price.** No formula for the size of the move beat simply today's price, not even the careful ones. So the price estimate on the page is today's price, and what the model adds is the direction. That is less exciting than a predicted price, but it's what the data says.
 
-The backtest is on the page, month by month, and every single forecast is in `data/backtest/`. Only forecasts that don't overlap are counted, so a single lucky move isn't counted a hundred times.
+The "past-year test" on the page replays the whole system, with these settings and the daily evolution, over the twelve months before the live record began (27 September 2025 to 26 September 2026): 53.5% on strong-signal calls at 1 hour and 54.1% at 3 hours (52.7% and 53.9% of all calls). Those months were looked at during the review, so treat it as a check that the system runs as described, not as an untouched test.
 
-If a real pattern shows up, the system is built to find it, and the record will show it. Until then, it is honest about what it doesn't know. This is an experiment, not financial advice.
+It is still history. Markets change, and a pattern that worked for two years can fade. The live record sits right next to the backtest on the page, scored the same way, and from now on it is the only test nobody could have tuned for. This is an experiment, not financial advice.
 
 ## How it keeps adjusting
 
@@ -66,22 +66,35 @@ Six "experts" look at the market in different ways:
 | Linear Brain | A regularised regression on the signals that evolution picked |
 | Boosted Forest | Gradient-boosted trees on the same signals, for non-linear patterns |
 
-Next to them sits the **direction model**: a ridge regression and gradient-boosted trees trained on the sign of the move only (up or down), on all 55 signals and the last 240 days. It decides the up/down call and its probability. The page shows one predicted price per horizon: the call times how far Bitcoin typically moves in that time (read off the calibrated 80% range, which the six experts and the online learners keep honest). The range itself isn't shown anymore; it was more confusing than useful.
+Next to them sits the **direction model**: a ridge regression and gradient-boosted trees trained on the sign of the move only (up or down), on all 55 signals and the last 240 days. It decides the call and its probability. The experts set the 50%, 80% and 95% ranges, which the page doesn't show but the record keeps and scores.
 
-After every result, four things happen:
+After every result, a few things happen:
 
 1. Experts that were closer to reality get more trust, and the others get less (a Hedge ensemble).
 2. A range that missed gets wider, and one that held gets narrower, until each holds as often as it promises (adaptive conformal inference).
 3. The stated probabilities are recalibrated, so "55%" really means 55%. It only learns how strong the signal is, never an up or down bias, so it can't just follow the recent trend.
-4. Once a day at 00:00 UTC, mutated settings challenge the current ones on the last ten days they haven't seen. A challenger only wins if its lead is clear and consistent. In testing on Cardano, my first rule changed settings on 38 of 50 days and did worse than never changing at all. Being flexible doesn't mean reacting to every bit of noise.
+4. Once a day at 00:00 UTC every model is retrained, and mutated settings challenge the current ones on the last ten days they haven't seen. A challenger only wins if its lead is clear and consistent. In testing on Cardano, my first rule changed settings on 38 of 50 days and did worse than never changing at all. Being flexible doesn't mean reacting to every bit of noise.
+
+All of this forgets by time. Up to v3 the memory was supposed to halve in 14 and 30 days, but because of a bug it really took about 210 and 450 days. When I fixed the clock and tried the short memory I had meant, the forecasts got worse. So the system keeps the long memory, now written down honestly. Faster isn't always smarter.
+
+Two things run in the background without being shown, so they can be tested on the live record: the 24-hour direction model, and a shrunk version of the price move implied by the call. If either starts to beat what the page shows now, the record will say so.
 
 A few details that mattered more than I expected:
 
-- 24-hour outcomes that are 15 minutes apart are almost the same outcome. So the longer the horizon, the harder the models are held back (ridge penalty × h/60, and slower, bigger-leaved trees).
+- 24-hour outcomes that are 15 minutes apart are almost the same outcome. So the longer the horizon, the harder the models are held back.
 - Volatility is estimated from an equal mix of the last 1 hour, 6 hours, 24 hours and 3 days. That gave the sharpest ranges that still held.
-- The ranges are centred on what the experts think, never on the drift of the last few weeks. The old version followed that drift, and it made the 24-hour estimate worse than "no change".
+- A missing candle is never treated as a real price. A forecast is only made when all three coins have real data, and an outcome that lands on a gap isn't scored.
 
-Everything is written from scratch in plain JavaScript with no dependencies, including the gradient boosting. The same files in `site/core/` run in the browser and in GitHub Actions.
+Everything is written from scratch in plain JavaScript with no dependencies, including the gradient boosting. The same files in `site/core/` run in the browser and in GitHub Actions, and every shared file is identical in this project and in ADAptive.
+
+## What the September 2026 review changed
+
+The review is summarised in [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md), together with every test I ran because of it. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) describes how the system works now. In short:
+
+- What the page shows is exactly what the record stores and what gets scored.
+- Every record row says when it was computed, from which model and which code, and whether it was on time. `research/verify-record.mjs` checks that against the git history.
+- Missing data can't turn into fake outcomes, and a broken checkpoint stops the pipeline instead of quietly writing zeros.
+- I wrote down the rules for every decision before I looked at any result. The year before the tuning period was only used as a final check.
 
 ## The record
 
@@ -89,29 +102,33 @@ Everything lives in `data/` and is committed by the bot:
 
 | File | What's in it |
 |---|---|
-| `predictions/YYYY-MM-DD.csv` | one row per forecast: the price, and for each horizon the predicted move (bp), P(up), the 80% range (bp) and whether it was a confident call |
+| `predictions/YYYY-MM-DD.csv` | one row per forecast: when and how it was made, and for each horizon the shown price, P(up), the call, strong signal, and the background values (the model's own P(up), the shrunk move, the experts' move, the 80% range) |
 | `state.json` | the learning checkpoint: trust weights, range sizes, calibration, forecasts still waiting |
-| `model.json` | all six experts, including every tree of the forest |
+| `model.json` | every model, including every tree |
 | `evolution.json` | every daily tournament and the settings that won |
-| `daily/YYYY-MM.json` | scores per day and snapshots of the ensemble |
-| `fng.json` | the last 30 days of the Fear & Greed index, exactly as the record used it |
-| `status.json` | the last run, totals and a file index |
+| `daily/YYYY-MM.json` | scores per day (on-time forecasts and filled-in ones apart) and snapshots of what the system has learned |
+| `fng.json` | the Fear & Greed values exactly as the record used them, with when each was first seen |
+| `status.json` | the last run, its health, totals and a file index |
 | `backtest.json`, `backtest/YYYY-MM.csv` | the one-year walk-forward backtest: scores per day and every forecast with its outcome |
 | `warmup.json` | the 30-day warm-up simulation from launch |
+| `archive/` | earlier records, unchanged |
 
-A forecast made at time *t* only uses models trained before *t* and data that was public at *t*. Times are UTC candle open times, so the `14:29` row is the forecast issued when that candle closed, at 14:30. Anyone can replay a checkpoint with `site/core/engine.js` and get the same numbers.
+A forecast made at time *t* only uses models trained before *t* and data that was public at *t*. Times are UTC candle open times, so the `14:29` row is the forecast issued when that candle closed, at 14:30.
 
 ## Run it yourself
 
 You need Node.js 22 or newer. No packages to install.
 
 ```bash
-npm test                              # unit tests: no look-ahead, model parity, the online learners
-node engine/run.mjs --bootstrap       # fetch ~290 days, train, simulate 30 days (about 8 minutes)
-node engine/backtest.mjs --days 365   # the one-year backtest (downloads Binance archive files, ~35 minutes)
+npm test                              # unit tests: no look-ahead, the fixes from the review, the online learners
+node engine/run.mjs --bootstrap       # fetch ~290 days, train, simulate 30 days (about 5 minutes)
+node engine/backtest.mjs --evolve     # the one-year backtest (downloads Binance archive files, ~1.5 hours)
 node engine/run.mjs                   # a normal run: replays everything since the last one
 node engine/serve.mjs                 # preview on http://localhost:8787
+node research/verify-record.mjs       # check the record against the git history
 ```
+
+The evaluation behind the settings is in `research/` and takes a few hours. The commands are in [docs/EXPERIMENTS.md](docs/EXPERIMENTS.md).
 
 To run your own copy, fork the repo, set **Settings → Pages → Source** to **GitHub Actions**, and enable the workflow.
 
@@ -120,6 +137,8 @@ site/            the static site on GitHub Pages
   core/          the shared engine: signals, models, online learning, scoring
   assets/        the page: live feed, chart, app
 engine/          Node only: data fetching, training, boosting, evolution, the pipeline
+research/        the evaluation: baseline, walk-forward stages, decisions, record check
+docs/            how it works, and the experiments
 data/            the public record
 test/            unit tests
 ```
